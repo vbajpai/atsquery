@@ -17,6 +17,7 @@ import hashlib
 import base64
 import urllib
 import collections
+import lxml.etree
 
 host = 'ats.amazonaws.com'
 action = 'TopSites'
@@ -24,13 +25,15 @@ access_key_id = None
 timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
 response_group = "Country"
 start = 1
-count = 10
+count = 100
 country_code = ''
 signature_version = 2
 signature_method = 'HmacSHA1'
 
 def http_get(access_key_id, secret_access_key, country_code='', signature=''):
-  """docstring for http_get"""
+  """sends a HTTP GET to alexa top sites web service using requests;
+     parses the XML response using lxml; filters the response XML for domain
+     names and returns the list of domain entries"""
 
   query = {
       "Action"             :     action
@@ -45,37 +48,38 @@ def http_get(access_key_id, secret_access_key, country_code='', signature=''):
   }
 
   query = collections.OrderedDict(sorted(query.items()))
-  r = requests.request (
-                          method='GET'
-                        , url='http://%s'%(host)
-                        , params=query
-                        , return_response=False
-                       )
-
-  request_raw = '\n'.join([r.method, host, '/', r.path_url[2:]])
-  request_raw = base64.b64encode(request_raw)
+  req = requests.Request (
+                            method='GET'
+                          , url='http://%s'%(host)
+                          , params=query
+                         )
+  prep = req.prepare()
+  string_to_sign = '\n'.join([prep.method, host, '/', prep.path_url[2:]])
   signature = hmac.new (
                           key=secret_access_key
-                        , msg=bytes(request_raw)
+                        , msg=bytes(string_to_sign)
                         , digestmod=hashlib.sha1
                        ).digest()
   signature = base64.b64encode(signature)
-  query['Signature'] = signature
+  prep.url = '%s&Signature=%s'%(prep.url, signature)
+  s = requests.Session()
+  res = s.send(prep)
 
-  r.params = query
-  print r.params
-
-  r.send()
-  res = r.response
-  print res.status_code
-  print res.text
+  xml = res.text
+  tree = lxml.etree.fromstring(xml)
+  NSMAP = {'aws' : 'http://ats.amazonaws.com/doc/2005-11-21'}
+  entries = tree.xpath('//aws:DataUrl', namespaces = NSMAP)
+  entries = [entry.text for entry in entries]
+  return entries
 
 def main(args):
-  """parses command line arguments and calls get(...)"""
+  """parses command line arguments and calls http_get(...); 
+     retrieves the list of entries and prints them out"""
   access_key_id = args[0]
   secret_access_key = args[1]
   country_code = len(args) > 2 and args[2] or ''
-  http_get(access_key_id, secret_access_key, country_code)
+  entries = http_get(access_key_id, secret_access_key, country_code)
+  for entry in entries: print entry
 
 if __name__ == '__main__':
 
