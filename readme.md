@@ -16,6 +16,8 @@ Steps:
   * Install all requirements using `pip`  
   * Run `topsites.py`  
 
+Installation and Usage:
+
     $ pip install requirements.txt
     $ python topsites.py ACCESS_KEY_ID SECRET_ACCESS_KEY [COUNTRY_CODE]
 
