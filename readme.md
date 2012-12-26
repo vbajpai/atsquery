@@ -18,7 +18,7 @@ Steps:
 
 Installation and Usage:
 
-    $ pip install requirements.txt
+    $ pip install -r requirements.txt
     $ python topsites.py ACCESS_KEY_ID SECRET_ACCESS_KEY [COUNTRY_CODE]
 
 If you are getting "Not Authorized" messages, 
