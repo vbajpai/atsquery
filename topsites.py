@@ -53,7 +53,9 @@ def http_get(access_key_id, secret_access_key, country_code='', signature=''):
                           , url='http://%s'%(host)
                           , params=query
                          )
-  prep = req.prepare()
+  try: prep = req.prepare()
+  except Exception as e: print e
+
   string_to_sign = '\n'.join([prep.method, host, '/', prep.path_url[2:]])
   signature = hmac.new (
                           key=secret_access_key
@@ -63,12 +65,21 @@ def http_get(access_key_id, secret_access_key, country_code='', signature=''):
   signature = base64.b64encode(signature)
   prep.url = '%s&Signature=%s'%(prep.url, signature)
   s = requests.Session()
-  res = s.send(prep)
+  try: res = s.send(prep)
+  except Exception as e: print e
+  else:
+    try:
+      if res.status_code is not requests.codes.ok: res.raise_for_status()
+    except Exception as e:
+      print e
+      print res.text
 
   xml = res.text
-  tree = lxml.etree.fromstring(xml)
+  try: tree = lxml.etree.fromstring(xml)
+  except Exception as e: print e
   NSMAP = {'aws' : 'http://ats.amazonaws.com/doc/2005-11-21'}
-  entries = tree.xpath('//aws:DataUrl', namespaces = NSMAP)
+  try: entries = tree.xpath('//aws:DataUrl', namespaces = NSMAP)
+  except Exception as e: print e
   entries = [entry.text for entry in entries]
   return entries
 
@@ -78,8 +89,10 @@ def main(args):
   access_key_id = args[0]
   secret_access_key = args[1]
   country_code = len(args) > 2 and args[2] or ''
-  entries = http_get(access_key_id, secret_access_key, country_code)
-  for entry in entries: print entry
+  try:
+    entries = http_get(access_key_id, secret_access_key, country_code)
+    for entry in entries: print entry
+  except TypeError as e: print e
 
 if __name__ == '__main__':
 
